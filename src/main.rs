@@ -1,12 +1,15 @@
-extern crate fs_extra;
+// Use fs_extra crate for recursive file copy function
+extern crate fs_extra; 
 
 use std::env;
 use std::fs;
 use std::path::Path;
 
+// Custom generic error for application flow
 mod apperror;
 use apperror::AppError;
 
+// Pre-defined directory structure
 const SRC_DIR: &str = "src";
 const DIST_DIR: &str = "dist";
 const DIST_WWW_DIR: &str = "dist/www";
@@ -20,7 +23,6 @@ const GMI_EXT: &str = "gmi";
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() >= 2 && &args[1] == "init" {
-        // let base_dir = env::current_dir().unwrap().join(if args.len() >= 3 { Path::new(&args[2]) } else { Path::new("") });
         let base_dir = if args.len() >= 3 { Path::new(&args[2]) } else { Path::new("") };
         println!("Initializing directory {}", base_dir.to_str().unwrap());
         match init(&base_dir) {
@@ -33,10 +35,6 @@ fn main() {
             Ok(()) => println!("Build completed!"),
             Err(error) => eprintln!("Build error: {}", error)
         };
-    } else if args.len() >= 2 && &args[1] == "publish" {
-        // TODO
-    } else if args.len() >= 3 && &args[1] == "new-post" {
-        // TODO
     } else {
         println!("Cosmodrome");
         println!("Build a static web site and a gemini capsule in parallel");
@@ -50,6 +48,7 @@ fn main() {
     println!();
 }
 
+/// Initialize necessary source files in specified directory
 fn init(base_dir: &Path) -> Result<(), AppError> {
     if base_dir.is_dir() {
         if base_dir.exists() {
@@ -174,6 +173,7 @@ Some preformatted table or ascii art, perhaps?
     Ok(())
 }
 
+/// Build a static website and a Gemini capsule from specified directory
 fn build(base_dir: &Path) -> Result<(), AppError> {
     let src_dir = &base_dir.join(SRC_DIR);
     if !src_dir.exists() {
@@ -198,6 +198,7 @@ fn build(base_dir: &Path) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Recursively process all items in the directory
 fn build_dir(dir: &Path, base_dir: &Path) -> Result<(), AppError> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
@@ -216,6 +217,7 @@ fn build_dir(dir: &Path, base_dir: &Path) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Decide what to do with a file: create an HTML page, create a Gemini page or just copy it
 fn build_file(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError> {
     if src_file_path.extension().unwrap_or(std::ffi::OsStr::new("")) == GMI_EXT
     {
@@ -229,6 +231,7 @@ fn build_file(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Use specified source page to create an HTML page in dist/www
 fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError> {
     print!("Building HTML page from {}... ", src_file_path.to_str().unwrap_or(""));
     // Determine the path of the HTML page
@@ -247,9 +250,7 @@ fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError
         if gmi_line.starts_with("```") {
             if pre {
                 html_lines.push(format!("</pre>"));
-                html_lines.push(format!("</div>"));
             } else {
-                html_lines.push(format!("<div>"));
                 html_lines.push(format!("<pre>"));
             }
             pre = !pre;
@@ -267,7 +268,6 @@ fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError
         if prefix == "*" {        
             // Open <ul> tag when starting a list
             if !ul {
-                html_lines.push(format!("<div>"));
                 html_lines.push(format!("<ul>"));
                 ul = true;
             }
@@ -277,11 +277,9 @@ fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError
         // Close <ul> tag when ending a list
         if ul {
             html_lines.push(format!("</ul>"));
-            html_lines.push(format!("</div>"));
             ul = false;
         }
         // Content line
-        html_lines.push(format!("<div>"));
         match prefix {
             // Headers
             "#" => {
@@ -295,7 +293,7 @@ fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError
             },
             // Quote
             ">" => {
-                html_lines.push(format!("<q>{}</q>", content));
+                html_lines.push(format!("<blockquote>{}</blockquote>", content));
             },
             // Link or image
             "=>" => {
@@ -309,23 +307,22 @@ fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError
                 || link.ends_with(".png")
                 || link.ends_with(".svg")
                 || link.ends_with(".webp") {
-                    html_lines.push(format!("<img src=\"{}\">{}</img>", link, desc));
+                    html_lines.push(format!("<div><img src=\"{}\">{}</img></div>", link, desc));
                 } if link.ends_with(".gmi") {
-                    html_lines.push(format!("<a href=\"{}\">{}</a>", link.replace(".gmi", ".html"), desc));
+                    html_lines.push(format!("<div><a href=\"{}\">{}</a></div>", link.replace(".gmi", ".html"), desc));
                 } else {
-                    html_lines.push(format!("<a href=\"{}\">{}</a>", link, desc));
+                    html_lines.push(format!("<div><a href=\"{}\">{}</a></div>", link, desc));
                 }
             },
             // Text or a line break
             _ => {
                 if gmi_line.is_empty() {
-                    html_lines.push(format!(""));
+                    html_lines.push(format!("<p>&nbsp;</p>"));
                 } else {
                     html_lines.push(format!("<p>{}</p>", gmi_line));
                 }
             }
         }
-        html_lines.push(format!("</div>"));
     }
     let html_content = html_lines.join("\n");
     // Wrap HTML page with header and footer
@@ -344,6 +341,7 @@ fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError
     Ok(())
 }
 
+/// Use specified source page to create a Gemini page in dist/gem
 fn build_gmi_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError> {
     print!("Building Gemini page from {}... ", src_file_path.to_str().unwrap_or(""));
     let rel_file_path = src_file_path.strip_prefix(base_dir).unwrap().strip_prefix(SRC_DIR).unwrap();
@@ -366,11 +364,13 @@ fn build_gmi_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError>
     Ok(())
 }
 
+// Copy specified file to both dist/www and dist/gem
 fn copy_file(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError> {
     let rel_file_path = src_file_path.strip_prefix(base_dir).unwrap().strip_prefix(SRC_DIR).unwrap();
-    let www_file_path = base_dir.join(DIST_WWW_DIR).join(rel_file_path);
-    let gem_file_path = base_dir.join(DIST_GEM_DIR).join(rel_file_path);
+    let www_file_path = &base_dir.join(DIST_WWW_DIR).join(rel_file_path);
+    let gem_file_path = &base_dir.join(DIST_GEM_DIR).join(rel_file_path);
     fs::create_dir_all(www_file_path.parent().unwrap())?;
+    fs::create_dir_all(gem_file_path.parent().unwrap())?;
     print!("Copying file {} ... ", &src_file_path.to_str().unwrap_or(""));
     fs::copy(&src_file_path, &www_file_path)?;
     fs::copy(&src_file_path, &gem_file_path)?;
