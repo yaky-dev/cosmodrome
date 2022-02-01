@@ -308,7 +308,7 @@ fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError
                 || link.ends_with(".svg")
                 || link.ends_with(".webp") {
                     html_lines.push(format!("<div><img src=\"{}\">{}</img></div>", link, desc));
-                } if link.ends_with(".gmi") {
+                } else if link.starts_with("/") && link.ends_with(".gmi") {
                     html_lines.push(format!("<div><a href=\"{}\">{}</a></div>", link.replace(".gmi", ".html"), desc));
                 } else {
                     html_lines.push(format!("<div><a href=\"{}\">{}</a></div>", link, desc));
