@@ -272,7 +272,7 @@ fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError
             continue;
         }
         if pre {
-            html_lines.push(gmi_line.to_string());
+            html_lines.push(gmi_line.replace("<", "&lt;").replace(">", "&gt;"));
             continue;
         }
         // Split into prefix and contents
@@ -332,7 +332,7 @@ fn build_html_page(src_file_path: &Path, base_dir: &Path) -> Result<(), AppError
                 || link.ends_with(".png")
                 || link.ends_with(".svg")
                 || link.ends_with(".webp") {
-                    html_lines.push(format!("<div><img src=\"{}\">{}</img></div>", link, desc));
+                    html_lines.push(format!("<div><img src=\"{}\" alt=\"{}\"/></div>", link, desc));
                 } else if link.starts_with("/") && link.ends_with(".gmi") {
                     html_lines.push(format!("<div><a href=\"{}\">{}</a></div>", link.replace(".gmi", ".html"), desc));
                 } else {
